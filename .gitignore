@@ -21,6 +21,9 @@ appsettings.Local.json
 
 ## Claude Code
 .claude/
+*_task_outputs.txt
+*_result_final.txt
+git_out.txt
 
 ## OS
 .DS_Store
