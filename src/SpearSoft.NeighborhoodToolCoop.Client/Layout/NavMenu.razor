@@ -1,0 +1,44 @@
+@inject NavigationManager Nav
+
+<!-- Brand -->
+<div class="sidebar-brand px-3 py-3 d-flex align-items-center gap-2">
+    <span class="fw-bold text-white" style="font-size: 1.05rem;">🔧 Tool Co-op</span>
+</div>
+
+<!-- Tenant label -->
+@if (!string.IsNullOrEmpty(TenantSlug))
+{
+    <div class="sidebar-tenant px-3 pb-2">@TenantSlug</div>
+}
+
+<!-- Navigation -->
+<nav class="sidebar-nav py-2">
+    <NavLink class="nav-link-item" href="@($"/t/{TenantSlug}/dashboard")" Match="NavLinkMatch.Prefix">
+        <span class="nav-icon">📊</span> Dashboard
+    </NavLink>
+    <NavLink class="nav-link-item" href="@($"/t/{TenantSlug}/catalog")" Match="NavLinkMatch.Prefix">
+        <span class="nav-icon">📋</span> Catalog
+    </NavLink>
+    <NavLink class="nav-link-item" href="@($"/t/{TenantSlug}/locations")" Match="NavLinkMatch.Prefix">
+        <span class="nav-icon">📍</span> Locations
+    </NavLink>
+
+    <AuthorizeView Roles="Admin,Manager">
+        <div class="sidebar-section-label">Admin</div>
+        <NavLink class="nav-link-item" href="@($"/t/{TenantSlug}/admin/members")" Match="NavLinkMatch.Prefix">
+            <span class="nav-icon">👥</span> Members
+        </NavLink>
+    </AuthorizeView>
+</nav>
+
+@code {
+    private string TenantSlug
+    {
+        get
+        {
+            var segments = new Uri(Nav.Uri).AbsolutePath
+                .Split('/', StringSplitOptions.RemoveEmptyEntries);
+            return segments.Length >= 2 && segments[0] == "t" ? segments[1] : string.Empty;
+        }
+    }
+}

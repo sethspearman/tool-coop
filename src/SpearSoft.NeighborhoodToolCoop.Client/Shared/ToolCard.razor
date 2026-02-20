@@ -1,0 +1,53 @@
+@using SpearSoft.NeighborhoodToolCoop.Shared.Models
+
+<div class="card h-100 tool-card">
+    @if (!string.IsNullOrEmpty(Tool.ImageUrl))
+    {
+        <img src="@Tool.ImageUrl" class="card-img-top tool-card-img" alt="@Tool.Name" />
+    }
+    else
+    {
+        <div class="tool-card-img-placeholder d-flex align-items-center justify-content-center bg-light">
+            <span class="fs-1 text-muted">🔧</span>
+        </div>
+    }
+    <div class="card-body d-flex flex-column">
+        <h6 class="card-title mb-1 fw-semibold">@Tool.Name</h6>
+        <div class="d-flex gap-2 mb-2 flex-wrap">
+            <span class="badge @ConditionBadge(Tool.Condition)">@Tool.Condition</span>
+            @if (!string.IsNullOrEmpty(Tool.Category))
+            {
+                <span class="badge bg-secondary">@Tool.Category</span>
+            }
+        </div>
+        @if (Tool.Location is not null)
+        {
+            <small class="text-muted mb-2">📍 @LocationShort(Tool.Location.Path)</small>
+        }
+        <div class="mt-auto">
+            <a href="/t/@TenantSlug/tool/@Tool.Id" class="btn btn-sm btn-outline-primary w-100">
+                View Details
+            </a>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Tool        Tool        { get; set; } = default!;
+    [Parameter, EditorRequired] public string      TenantSlug  { get; set; } = default!;
+
+    private static string ConditionBadge(string condition) => condition switch
+    {
+        "New"         => "bg-success",
+        "Good"        => "bg-primary",
+        "Fair"        => "bg-warning text-dark",
+        "NeedsRepair" => "bg-danger",
+        _             => "bg-secondary"
+    };
+
+    private static string LocationShort(string path)
+    {
+        var parts = path.Split('.');
+        return parts.Length <= 2 ? path.Replace('.', '/') : string.Join(" / ", parts[^2..]);
+    }
+}

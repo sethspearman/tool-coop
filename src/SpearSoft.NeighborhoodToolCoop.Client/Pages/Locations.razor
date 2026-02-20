@@ -1,0 +1,48 @@
+@page "/t/{TenantSlug}/locations"
+@attribute [Authorize]
+@inject LocationApiService LocationApi
+
+<PageTitle>Locations — Tool Co-op</PageTitle>
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0 fw-semibold">Locations</h4>
+    <AuthorizeView Roles="Admin,Manager">
+        <small class="text-muted">Manage in Admin panel</small>
+    </AuthorizeView>
+</div>
+
+@if (loading)
+{
+    <LoadingSpinner />
+}
+else if (tree.Count == 0)
+{
+    <p class="text-muted">No locations configured yet.</p>
+}
+else
+{
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <ul class="list-group list-group-flush location-tree">
+                @foreach (var node in tree)
+                {
+                    <LocationTreeNode Node="@node" TenantSlug="@TenantSlug" />
+                }
+            </ul>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string TenantSlug { get; set; } = "";
+
+    private List<LocationNode> tree    = [];
+    private bool               loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var flat = await LocationApi.ListAllAsync();
+        tree     = LocationApiService.BuildTree(flat);
+        loading  = false;
+    }
+}

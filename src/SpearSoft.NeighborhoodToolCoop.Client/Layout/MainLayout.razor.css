@@ -1,0 +1,61 @@
+/* ── App shell ───────────────────────────────────────────────────── */
+.app-shell {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────── */
+.sidebar {
+    width: 224px;
+    flex-shrink: 0;
+    background-color: #1e293b;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* ── Main area ───────────────────────────────────────────────────── */
+.main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background-color: #f8fafc;
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────── */
+.top-bar {
+    height: 52px;
+    background-color: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* ── Page content ────────────────────────────────────────────────── */
+.page-content {
+    flex: 1;
+    padding: 1.5rem;
+}
+
+/* ── Mobile: stack vertically ────────────────────────────────────── */
+@media (max-width: 767.98px) {
+    .app-shell {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+    }
+
+    .page-content {
+        padding: 1rem;
+    }
+}

@@ -1,0 +1,31 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.userprefs
+.idea/
+
+## Rider / VS Code
+.idea/
+.vscode/
+
+## NuGet
+*.nupkg
+packages/
+
+## Secrets (never commit)
+appsettings.Local.json
+**/secrets.json
+
+## Claude Code
+.claude/
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Logs
+logs/
+*.log

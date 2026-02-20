@@ -1,0 +1,62 @@
+/* ── Sidebar brand ───────────────────────────────────────────────── */
+.sidebar-brand {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+}
+
+/* ── Tenant label ────────────────────────────────────────────────── */
+.sidebar-tenant {
+    color: #64748b;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+}
+
+/* ── Nav container ───────────────────────────────────────────────── */
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+/* ── Nav links ───────────────────────────────────────────────────── */
+.nav-link-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 1.25rem;
+    color: #cbd5e1;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+}
+
+.nav-link-item:hover {
+    background-color: rgba(255, 255, 255, 0.07);
+    color: #ffffff;
+}
+
+.nav-link-item.active {
+    background-color: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    font-weight: 500;
+}
+
+/* ── Section label ───────────────────────────────────────────────── */
+.sidebar-section-label {
+    padding: 0.85rem 1.25rem 0.35rem;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #475569;
+    font-weight: 600;
+}
+
+/* ── Icon column ─────────────────────────────────────────────────── */
+.nav-icon {
+    width: 1.2rem;
+    text-align: center;
+    flex-shrink: 0;
+}

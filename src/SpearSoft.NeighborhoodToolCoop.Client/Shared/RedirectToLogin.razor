@@ -1,0 +1,18 @@
+@inject NavigationManager Navigation
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Extract tenant slug from the current URL (/t/{slug}/...)
+        var uri = new Uri(Navigation.Uri);
+        var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+        // segments[0] == "t", segments[1] == tenantSlug
+        var tenantSlug = segments.Length >= 2 && segments[0].Equals("t", StringComparison.OrdinalIgnoreCase)
+            ? segments[1]
+            : "unknown";
+
+        var returnUrl = Uri.EscapeDataString(Navigation.Uri);
+        Navigation.NavigateTo($"/t/{tenantSlug}/auth/login?returnUrl={returnUrl}", forceLoad: true);
+    }
+}

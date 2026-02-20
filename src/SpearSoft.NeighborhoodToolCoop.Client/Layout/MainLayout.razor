@@ -1,0 +1,50 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Nav
+
+<div class="app-shell">
+    <aside class="sidebar">
+        <NavMenu />
+    </aside>
+
+    <div class="main-area">
+        <header class="top-bar px-4">
+            <div class="d-flex align-items-center gap-2 ms-auto">
+                <AuthorizeView>
+                    <Authorized>
+                        @{
+                            var avatarUrl   = context.User.FindFirst("avatar_url")?.Value;
+                            var displayName = context.User.Identity?.Name ?? "Member";
+                        }
+                        @if (!string.IsNullOrEmpty(avatarUrl))
+                        {
+                            <img src="@avatarUrl" class="rounded-circle"
+                                 width="28" height="28" alt="@displayName" />
+                        }
+                        <span class="small text-muted d-none d-sm-inline">@displayName</span>
+                        <form method="post" action="/t/@TenantSlug/auth/logout" class="d-inline ms-1">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                Sign out
+                            </button>
+                        </form>
+                    </Authorized>
+                </AuthorizeView>
+            </div>
+        </header>
+
+        <main class="page-content px-4 py-3">
+            @Body
+        </main>
+    </div>
+</div>
+
+@code {
+    private string TenantSlug
+    {
+        get
+        {
+            var segments = new Uri(Nav.Uri).AbsolutePath
+                .Split('/', StringSplitOptions.RemoveEmptyEntries);
+            return segments.Length >= 2 && segments[0] == "t" ? segments[1] : string.Empty;
+        }
+    }
+}

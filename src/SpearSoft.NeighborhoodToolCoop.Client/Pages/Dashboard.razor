@@ -1,0 +1,146 @@
+@page "/t/{TenantSlug}"
+@page "/t/{TenantSlug}/dashboard"
+@attribute [Authorize]
+@inject LoanApiService LoanApi
+@inject NavigationManager Nav
+
+<PageTitle>Dashboard — Tool Co-op</PageTitle>
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <h4 class="mb-0 fw-semibold">Dashboard</h4>
+</div>
+
+@if (loading)
+{
+    <LoadingSpinner />
+}
+else
+{
+    <div class="row g-4">
+
+        <!-- Active loans -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header fw-semibold">
+                    My Active Loans
+                    @if (overdueCount > 0)
+                    {
+                        <span class="badge bg-danger ms-2">@overdueCount overdue</span>
+                    }
+                </div>
+                <div class="card-body p-0">
+                    @if (activeLoans.Count == 0)
+                    {
+                        <p class="text-muted p-3 mb-0">You have no active loans.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Tool</th>
+                                        <th>Due</th>
+                                        <th>Status</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var loan in activeLoans)
+                                    {
+                                        var overdue = IsOverdue(loan);
+                                        <tr class="@(overdue ? "table-danger" : "")">
+                                            <td class="fw-medium">@(loan.Tool?.Name ?? "—")</td>
+                                            <td class="@(overdue ? "text-danger fw-bold" : "text-muted")">
+                                                @loan.DueUtc.LocalDateTime.ToString("MMM d, yyyy")
+                                            </td>
+                                            <td>
+                                                <span class="badge @StatusBadge(loan.Status)">@loan.Status</span>
+                                            </td>
+                                            <td>
+                                                <a href="/t/@TenantSlug/tool/@loan.ToolId"
+                                                   class="btn btn-sm btn-outline-secondary">View</a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick scan / lookup -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header fw-semibold">Quick Scan</div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        Point your phone camera at any tool QR label to check out or return.
+                        On desktop, enter the code below.
+                    </p>
+                    <div class="input-group">
+                        <input @bind="qrInput" @bind:event="oninput"
+                               @onkeydown="OnKeyDown"
+                               class="form-control form-control-sm"
+                               placeholder="e.g. T-0001" />
+                        <button @onclick="GoToTool" class="btn btn-primary btn-sm">Go</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mt-3">
+                <div class="card-header fw-semibold">Browse</div>
+                <div class="card-body d-grid gap-2">
+                    <a href="/t/@TenantSlug/catalog" class="btn btn-outline-primary btn-sm">
+                        🔧 Browse Catalog
+                    </a>
+                    <a href="/t/@TenantSlug/locations" class="btn btn-outline-secondary btn-sm">
+                        📍 View Locations
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+}
+
+@code {
+    [Parameter] public string TenantSlug { get; set; } = "";
+
+    private List<Loan> activeLoans  = [];
+    private int        overdueCount  = 0;
+    private bool       loading       = true;
+    private string     qrInput       = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        activeLoans  = await LoanApi.GetMyLoansAsync(activeOnly: true);
+        overdueCount = activeLoans.Count(IsOverdue);
+        loading      = false;
+    }
+
+    private static bool IsOverdue(Loan loan) =>
+        loan.Status == "Overdue" ||
+        (loan.Status == "CheckedOut" && loan.DueUtc < DateTimeOffset.UtcNow);
+
+    private static string StatusBadge(string status) => status switch
+    {
+        "CheckedOut" => "bg-primary",
+        "Reserved"   => "bg-info text-dark",
+        "Overdue"    => "bg-danger",
+        _            => "bg-secondary"
+    };
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") GoToTool();
+    }
+
+    private void GoToTool()
+    {
+        if (!string.IsNullOrWhiteSpace(qrInput))
+            Nav.NavigateTo($"/t/{TenantSlug}/catalog?query={Uri.EscapeDataString(qrInput.Trim())}");
+    }
+}

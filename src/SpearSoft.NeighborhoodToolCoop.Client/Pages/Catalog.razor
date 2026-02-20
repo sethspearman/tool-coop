@@ -1,0 +1,140 @@
+@page "/t/{TenantSlug}/catalog"
+@attribute [Authorize]
+@inject ToolApiService ToolApi
+
+<PageTitle>Catalog — Tool Co-op</PageTitle>
+
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <h4 class="mb-0 fw-semibold">Tool Catalog</h4>
+    <AuthorizeView Roles="Admin,Manager">
+        <a href="/t/@TenantSlug/tools/new" class="btn btn-primary btn-sm">+ Add Tool</a>
+    </AuthorizeView>
+</div>
+
+<!-- Filters -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-center">
+            <div class="col-sm-4">
+                <input value="@filter.Query" @oninput="OnSearchInput"
+                       class="form-control form-control-sm"
+                       placeholder="Search by name…" />
+            </div>
+            <div class="col-sm-3">
+                <select @bind="filter.Category" @bind:after="ApplyFilter" class="form-select form-select-sm">
+                    <option value="">All categories</option>
+                    @foreach (var cat in categories)
+                    {
+                        <option>@cat</option>
+                    }
+                </select>
+            </div>
+            <div class="col-sm-auto">
+                <div class="form-check mb-0">
+                    <input @bind="filter.AvailableOnly" @bind:after="ApplyFilter"
+                           class="form-check-input" type="checkbox" id="availOnly" />
+                    <label class="form-check-label small" for="availOnly">Available only</label>
+                </div>
+            </div>
+            @if (IsFiltered)
+            {
+                <div class="col-sm-auto">
+                    <button @onclick="ClearFilters" class="btn btn-sm btn-link text-muted p-0">
+                        Clear filters
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Results -->
+@if (loading)
+{
+    <LoadingSpinner />
+}
+else if (tools.Count == 0)
+{
+    <div class="text-center py-5 text-muted">
+        <div class="fs-1">🔍</div>
+        <p>No tools match your search.</p>
+    </div>
+}
+else
+{
+    <p class="text-muted small mb-3">@tools.Count tool@(tools.Count == 1 ? "" : "s") found</p>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
+        @foreach (var tool in tools)
+        {
+            <div class="col">
+                <ToolCard Tool="@tool" TenantSlug="@TenantSlug" />
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public string TenantSlug { get; set; } = "";
+
+    [SupplyParameterFromQuery(Name = "query")]
+    public string? InitialQuery { get; set; }
+
+    private ToolFilter    filter     = new();
+    private List<Tool>    tools      = [];
+    private List<string>  categories = [];
+    private bool          loading    = true;
+    private System.Timers.Timer? debounce;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrEmpty(InitialQuery))
+            filter.Query = InitialQuery;
+
+        await ApplyFilter();
+
+        // Derive unique categories from first load (pre-filter)
+        if (categories.Count == 0)
+        {
+            var all = await ToolApi.ListAsync(new ToolFilter());
+            categories = all
+                .Where(t => !string.IsNullOrEmpty(t.Category))
+                .Select(t => t.Category!)
+                .Distinct()
+                .Order()
+                .ToList();
+        }
+    }
+
+    private async Task ApplyFilter()
+    {
+        loading = true;
+        StateHasChanged();
+        tools   = await ToolApi.ListAsync(filter);
+        loading = false;
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        filter.Query = e.Value?.ToString() ?? string.Empty;
+        debounce?.Dispose();
+        debounce = new System.Timers.Timer(350);
+        debounce.Elapsed += async (_, _) =>
+        {
+            debounce?.Dispose();
+            await InvokeAsync(ApplyFilter);
+        };
+        debounce.AutoReset = false;
+        debounce.Start();
+    }
+
+    private void ClearFilters()
+    {
+        filter = new ToolFilter();
+        _ = ApplyFilter();
+    }
+
+    private bool IsFiltered =>
+        !string.IsNullOrEmpty(filter.Query) ||
+        !string.IsNullOrEmpty(filter.Category) ||
+        filter.AvailableOnly;
+}

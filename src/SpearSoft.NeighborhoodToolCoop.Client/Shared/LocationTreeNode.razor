@@ -1,0 +1,47 @@
+@using SpearSoft.NeighborhoodToolCoop.Client.Services
+
+<li class="list-group-item py-2" style="padding-left: @(PaddingPx)px">
+    <div class="d-flex align-items-center justify-content-between">
+        <span>
+            @if (Node.Children.Count > 0)
+            {
+                <button @onclick="Toggle" class="btn btn-link btn-sm p-0 me-1 text-muted">
+                    @(expanded ? "▾" : "▸")
+                </button>
+            }
+            else
+            {
+                <span class="me-3"></span>
+            }
+            📁 <strong class="ms-1">@Node.Location.Name</strong>
+            <span class="badge bg-light text-secondary ms-2 small">@Node.Location.Code</span>
+        </span>
+        <a href="/t/@TenantSlug/api/v1/locations/@Node.Location.Id/labels"
+           class="btn btn-link btn-sm text-muted p-0 small" target="_blank">
+            🏷 Label
+        </a>
+    </div>
+    @if (Node.Location.Notes is not null)
+    {
+        <small class="text-muted ms-4">@Node.Location.Notes</small>
+    }
+</li>
+
+@if (expanded && Node.Children.Count > 0)
+{
+    @foreach (var child in Node.Children)
+    {
+        <LocationTreeNode Node="@child" TenantSlug="@TenantSlug" Indent="@(Indent + 1)" />
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public LocationNode Node       { get; set; } = default!;
+    [Parameter, EditorRequired] public string       TenantSlug { get; set; } = default!;
+    [Parameter]                 public int          Indent     { get; set; }
+
+    private bool expanded = true;
+    private int  PaddingPx => 16 + Indent * 20;
+
+    private void Toggle() => expanded = !expanded;
+}

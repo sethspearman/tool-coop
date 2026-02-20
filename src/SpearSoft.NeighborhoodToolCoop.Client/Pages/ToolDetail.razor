@@ -1,0 +1,246 @@
+@page "/t/{TenantSlug}/tool/{ToolId:guid}"
+@attribute [Authorize]
+@inject ToolApiService  ToolApi
+@inject LoanApiService  LoanApi
+@inject NavigationManager Nav
+
+<PageTitle>@(tool?.Name ?? "Tool") — Tool Co-op</PageTitle>
+
+@if (loading)
+{
+    <LoadingSpinner />
+}
+else if (tool is null)
+{
+    <div class="alert alert-warning">Tool not found.</div>
+}
+else
+{
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item"><a href="/t/@TenantSlug/catalog">Catalog</a></li>
+            <li class="breadcrumb-item active">@tool.Name</li>
+        </ol>
+    </nav>
+
+    <div class="row g-4">
+
+        <!-- Left: image + attributes -->
+        <div class="col-md-4">
+            @if (!string.IsNullOrEmpty(tool.ImageUrl))
+            {
+                <img src="@tool.ImageUrl" class="img-fluid rounded shadow-sm mb-3" alt="@tool.Name" />
+            }
+            else
+            {
+                <div class="bg-light rounded d-flex align-items-center justify-content-center mb-3"
+                     style="height: 200px; font-size: 4rem;">🔧</div>
+            }
+
+            @if (tool.Attributes.Count > 0)
+            {
+                <div class="card shadow-sm">
+                    <div class="card-header small fw-semibold">Specifications</div>
+                    <ul class="list-group list-group-flush small">
+                        @foreach (var attr in tool.Attributes)
+                        {
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span class="text-muted">@attr.Key</span>
+                                <span class="fw-medium">@attr.Value</span>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+        </div>
+
+        <!-- Right: details + action -->
+        <div class="col-md-8">
+            <div class="d-flex align-items-start justify-content-between gap-2 mb-2 flex-wrap">
+                <h3 class="fw-bold mb-0">@tool.Name</h3>
+                <span class="badge @ConditionBadge(tool.Condition) fs-6">@tool.Condition</span>
+            </div>
+
+            @if (!string.IsNullOrEmpty(tool.Category))
+            {
+                <span class="badge bg-secondary mb-2">@tool.Category</span>
+            }
+
+            @if (!string.IsNullOrEmpty(tool.Description))
+            {
+                <p class="text-muted">@tool.Description</p>
+            }
+
+            <!-- Location path -->
+            @if (tool.Location is not null)
+            {
+                <div class="mb-3">
+                    <span class="small text-muted fw-semibold">Location: </span>
+                    @foreach (var (seg, i) in tool.Location.Path.Split('.').Select((s, i) => (s, i)))
+                    {
+                        @if (i > 0) { <span class="text-muted mx-1">›</span> }
+                        <span class="small">@seg</span>
+                    }
+                </div>
+            }
+
+            @if (tool.DepositRequired > 0)
+            {
+                <p class="small text-muted">
+                    Deposit required: <strong>@tool.DepositRequired.ToString("C")</strong>
+                </p>
+            }
+
+            <hr />
+
+            <!-- Action panel (QR scan focus point) -->
+            <div id="action" class="action-panel p-3 rounded @ActionPanelClass()">
+                @if (actionMsg is not null)
+                {
+                    <div class="alert @(actionSuccess ? "alert-success" : "alert-danger") py-2 small">
+                        @actionMsg
+                    </div>
+                }
+
+                @if (activeLoan is null)
+                {
+                    <h6 class="fw-semibold">Available to borrow</h6>
+                    <p class="small text-muted mb-3">
+                        Default loan period: 7 days
+                        (due @DateTimeOffset.UtcNow.AddDays(7).LocalDateTime.ToString("MMM d")).
+                    </p>
+                    <button @onclick="CheckOut" disabled="@busy"
+                            class="btn btn-success btn-lg w-100">
+                        @(busy ? "Checking out…" : "✔ Check Out")
+                    </button>
+                }
+                else if (activeLoan.BorrowerId == currentUserId)
+                {
+                    <h6 class="fw-semibold text-primary">You have this tool</h6>
+                    <p class="small text-muted mb-1">
+                        Due: <strong>@activeLoan.DueUtc.LocalDateTime.ToString("MMM d, yyyy")</strong>
+                        @if (IsOverdue(activeLoan)) { <span class="badge bg-danger ms-1">Overdue</span> }
+                    </p>
+                    <button @onclick="Return" disabled="@busy"
+                            class="btn btn-outline-primary btn-lg w-100 mt-2">
+                        @(busy ? "Returning…" : "↩ Return Tool")
+                    </button>
+                }
+                else
+                {
+                    <h6 class="fw-semibold text-muted">Checked out</h6>
+                    <p class="small text-muted">
+                        This tool is currently checked out. Due back
+                        <strong>@activeLoan.DueUtc.LocalDateTime.ToString("MMM d")</strong>.
+                    </p>
+                }
+            </div>
+
+            @if (IsScan)
+            {
+                <p class="text-muted small text-center mt-2">Scan detected — action panel shown above.</p>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string TenantSlug { get; set; } = "";
+    [Parameter] public Guid   ToolId     { get; set; }
+
+    [SupplyParameterFromQuery(Name = "a")]
+    public string? Action { get; set; }
+
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private Tool?  tool        = null;
+    private Loan?  activeLoan  = null;
+    private Guid?  currentUserId;
+    private bool   loading     = true;
+    private bool   busy        = false;
+    private string? actionMsg  = null;
+    private bool   actionSuccess;
+
+    private bool IsScan => Action?.Equals("scan", StringComparison.OrdinalIgnoreCase) == true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            var idStr = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (Guid.TryParse(idStr, out var uid)) currentUserId = uid;
+        }
+
+        tool       = await ToolApi.GetByIdAsync(ToolId);
+        activeLoan = await LoanApi.GetMyLoansAsync(activeOnly: true)
+                         .ContinueWith(t => t.Result
+                             .FirstOrDefault(l => l.ToolId == ToolId &&
+                                 (l.Status is "CheckedOut" or "Reserved" or "Overdue")));
+        loading = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Scroll to action panel on QR scans
+        if (firstRender && IsScan && !loading)
+        {
+            // JS interop for scroll would go here — deferred; browser handles it
+            await Task.CompletedTask;
+        }
+    }
+
+    private async Task CheckOut()
+    {
+        busy = true; actionMsg = null;
+        var dueUtc = DateTimeOffset.UtcNow.AddDays(7);
+        var (ok, err, loan) = await LoanApi.CheckOutAsync(ToolId, dueUtc);
+        if (ok)
+        {
+            activeLoan   = loan;
+            actionMsg    = "Checked out successfully!";
+            actionSuccess = true;
+        }
+        else
+        {
+            actionMsg    = err ?? "Could not check out. Try again.";
+            actionSuccess = false;
+        }
+        busy = false;
+    }
+
+    private async Task Return()
+    {
+        busy = true; actionMsg = null;
+        if (activeLoan is not null && await LoanApi.ReturnAsync(activeLoan.Id))
+        {
+            activeLoan   = null;
+            actionMsg    = "Returned successfully. Thanks!";
+            actionSuccess = true;
+        }
+        else
+        {
+            actionMsg    = "Could not process return. Try again.";
+            actionSuccess = false;
+        }
+        busy = false;
+    }
+
+    private static bool IsOverdue(Loan l) =>
+        l.Status == "Overdue" || (l.Status == "CheckedOut" && l.DueUtc < DateTimeOffset.UtcNow);
+
+    private string ActionPanelClass() =>
+        activeLoan is null ? "bg-success bg-opacity-10 border border-success-subtle"
+        : activeLoan.BorrowerId == currentUserId ? "bg-primary bg-opacity-10 border border-primary-subtle"
+        : "bg-light border";
+
+    private static string ConditionBadge(string c) => c switch
+    {
+        "New"         => "bg-success",
+        "Good"        => "bg-primary",
+        "Fair"        => "bg-warning text-dark",
+        "NeedsRepair" => "bg-danger",
+        _             => "bg-secondary"
+    };
+}
