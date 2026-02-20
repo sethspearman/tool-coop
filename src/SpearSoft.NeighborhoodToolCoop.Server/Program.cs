@@ -120,9 +120,10 @@ try
     app.MapLocationEndpoints();
     app.MapMemberEndpoints();
 
-    // TODO (hosted model): app.UseBlazorFrameworkFiles();
-    // TODO (hosted model): app.UseStaticFiles();
-    // TODO (hosted model): app.MapFallbackToFile("index.html");
+    // Serve the Blazor WASM client (hosted model)
+    app.UseBlazorFrameworkFiles();
+    app.UseStaticFiles();
+    app.MapFallbackToFile("index.html");
 
     app.Run();
 }
