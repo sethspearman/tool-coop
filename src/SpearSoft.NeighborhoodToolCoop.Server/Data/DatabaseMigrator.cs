@@ -25,7 +25,10 @@ public static class DatabaseMigrator
         var connectionString = config.GetConnectionString("Default")
             ?? throw new InvalidOperationException("Connection string 'Default' is required.");
 
-        EnsureDatabase.For.PostgresqlDatabase(connectionString);
+        // Note: EnsureDatabase requires superuser access to the postgres system database.
+        // In our setup (Docker or managed Postgres) the target database is pre-created
+        // by the DBA / docker-compose, so we skip this step and connect directly.
+        // EnsureDatabase.For.PostgresqlDatabase(connectionString);
 
         var upgrader = DeployChanges.To
             .PostgresqlDatabase(connectionString)

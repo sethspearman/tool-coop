@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: toolcoop_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: toolcoop
+      POSTGRES_USER: toolcoop
+      POSTGRES_PASSWORD: toolcoop_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - toolcoop_pgdata:/var/lib/postgresql/data
+
+volumes:
+  toolcoop_pgdata:
